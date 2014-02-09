@@ -24,16 +24,25 @@ function get_map(layer, callback) {
     // no free map object for layer loaded -> load
     var map = new mapnik.Map(256, 256);
     map.bufferSize = global_args.bufferSize;
-    console.log('Open file: ' + global_args.stylesheet_dir + '/' + layer + '.mapnik');
-    map.load(global_args.stylesheet_dir + '/' + layer + '.mapnik', {
-        strict: false,
-        base: path.dirname(global_args.stylesheet_dir + '/' + layer + '.mapnik')
-    }, function(err, map) {
-        if (err) throw err;
-        map.zoomAll();
+    var file = global_args.stylesheet_dir + '/' + layer + '.mapnik';
 
-        console.log('Created map objects (' + layer + ')...');
-        callback(map);
+    fs.exists(file, function(exists) {
+        if (!exists) {
+            console.log('File ' + layer + '.mapnik does not exist!');
+            callback(null);
+            return;
+        }
+
+        map.load(file, {
+            strict: false,
+            base: path.dirname(global_args.stylesheet_dir + '/' + layer + '.mapnik')
+        }, function(err, map) {
+            if (err) throw err;
+            map.zoomAll();
+
+            console.log('Created map objects (' + layer + ')...');
+            callback(map);
+        });
     });
 
     map.renderer_idle = false;
@@ -70,6 +79,9 @@ module.exports = function(args) {
 
         pool.acquire(function(thread) {
             get_map(query.layers, function(map) {
+                if(!map)
+                    return process.nextTick(function() { pool.release(thread); });
+
                 map.resize(query.width, query.height);
                 if (query.srs) map.srs = '+init=' + query.srs;
                 map.extent = bbox;
