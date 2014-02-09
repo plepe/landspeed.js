@@ -23,6 +23,8 @@ if (!stylesheet) {
    process.exit(1);
 }
 
+mapnik.register_fonts('/usr/local/lib/mapnik/fonts/');
+
 var renderer = require('./renderer')({
     stylesheet: stylesheet,
     concurrency: concurrency,
