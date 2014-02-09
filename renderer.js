@@ -3,27 +3,55 @@ var fs = require('fs');
 var path = require('path');
 var util = require('util');
 var Pool = require('./pool');
+var maps = {};
+var global_args;
+
+function get_map(layer, callback) {
+    if (!maps[layer])
+        maps[layer] = []
+
+    for (var i in maps[layer]) {
+        if(maps[layer][i].renderer_idle) {
+            maps[layer][i].renderer_idle = false;
+            //maps[layer][i].renderer_start = time();
+
+            console.log('Use map object (' + layer + '/' + i +')...');
+            callback(maps[layer][i]);
+            return;
+        }
+    }
+
+    // no free map object for layer loaded -> load
+    var map = new mapnik.Map(256, 256);
+    map.bufferSize = global_args.bufferSize;
+    console.log('Open file: ' + global_args.stylesheet_dir + '/' + layer + '.mapnik');
+    map.load(global_args.stylesheet_dir + '/' + layer + '.mapnik', {
+        strict: false,
+        base: path.dirname(global_args.stylesheet_dir + '/' + layer + '.mapnik')
+    }, function(err, map) {
+        if (err) throw err;
+        map.zoomAll();
+
+        console.log('Created map objects (' + layer + ')...');
+        callback(map);
+    });
+
+    map.renderer_idle = false;
+    //map.renderer_start = time();
+    map.renderer_stop = null;
+    maps[layer].push(map);
+}
 
 module.exports = function(args) {
-    if (!args.stylesheet) throw new Error('missing stylesheet');
-    args.stylesheet = path.resolve(args.stylesheet);
+    if (!args.stylesheet_dir) throw new Error('missing stylesheet directory');
+    args.stylesheet_dir = path.resolve(args.stylesheet_dir);
     if (!args.concurrency) args.concurrency = 10;
     if (!args.bufferSize) args.bufferSize = 0;
+    global_args = args;
 
     var created = 0;
-    var maps = new Pool(function() {
-        var map = new mapnik.Map(256, 256);
-        map.bufferSize = args.bufferSize;
-        map.load(args.stylesheet, {
-            strict: false,
-            base: path.dirname(args.stylesheet)
-        }, function(err, map) {
-            if (err) throw err;
-            map.zoomAll();
-            created++;
-            util.print('\rCreating map objects (' + created + '/' + args.concurrency + ')...');
-            maps.release(map);
-        });
+    var pool = new Pool(function() {
+        pool.release({});
     }, args.concurrency);
 
     return function(query, callback) {
@@ -40,25 +68,30 @@ module.exports = function(args) {
             if (isNaN(bbox[i])) return callback(new Error('Invalid bbox: ' + util.inspect(bbox)));
         }
 
-        maps.acquire(function(map) {
-            map.resize(query.width, query.height);
-            if (query.srs) map.srs = '+init=' + query.srs;
-            map.extent = bbox;
+        pool.acquire(function(thread) {
+            get_map(query.layers, function(map) {
+                map.resize(query.width, query.height);
+                if (query.srs) map.srs = '+init=' + query.srs;
+                map.extent = bbox;
 
-            var canvas = new mapnik.Image(query.width, query.height);
-            map.render(canvas, function(err, image) {
-                // Wait until the next tick to avoid Mapnik warnings.
-                process.nextTick(function() { maps.release(map); });
+                var canvas = new mapnik.Image(query.width, query.height);
 
-                if (err) {
-                    callback(err);
-                } else {
-                    if (args.palette) {
-                        image.encode('png8:z=1', {palette: args.palette}, callback);
+                map.render(canvas, function(err, image) {
+                    // Wait until the next tick to avoid Mapnik warnings.
+                    process.nextTick(function() { pool.release(thread); });
+
+                    if (err) {
+                        callback(err);
                     } else {
-                        image.encode('png:z=1', callback);
+                        if (args.palette) {
+                            image.encode('png8:z=1', {palette: args.palette}, callback);
+                        } else {
+                            image.encode('png:z=1', callback);
+                        }
                     }
-                }
+
+                    map.renderer_idle = true;
+                });
             });
         });
     };

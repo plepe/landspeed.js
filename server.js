@@ -13,20 +13,20 @@ var http = require('http');
 var url = require('url');
 var fs = require('fs');
 
-var stylesheet = process.argv[2];
+var stylesheet_dir = process.argv[2];
 var port = +process.argv[3] || 8000;
 var concurrency = parseInt(process.argv[4] || 32, 10);
 var palette = process.argv[5] ? new mapnik.Palette(fs.readFileSync(process.argv[5]), 'act') : false;
 
-if (!stylesheet) {
-   console.warn('usage: ./server.js <stylesheet> <port> <concurrency> <palette>');
+if (!stylesheet_dir) {
+   console.warn('usage: ./server.js <stylesheet-directory> <port> <concurrency> <palette>');
    process.exit(1);
 }
 
 mapnik.register_fonts('/usr/local/lib/mapnik/fonts/');
 
 var renderer = require('./renderer')({
-    stylesheet: stylesheet,
+    stylesheet_dir: stylesheet_dir,
     concurrency: concurrency,
     palette: palette
 });
