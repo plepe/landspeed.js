@@ -13,20 +13,21 @@ var http = require('http');
 var url = require('url');
 var fs = require('fs');
 
-var stylesheet_dir = process.argv[2];
+var stylesheet = process.argv[2];
 var port = +process.argv[3] || 8000;
 var concurrency = parseInt(process.argv[4] || 32, 10);
 var palette = process.argv[5] ? new mapnik.Palette(fs.readFileSync(process.argv[5]), 'act') : false;
 
-if (!stylesheet_dir) {
-   console.warn('usage: ./server.js <stylesheet-directory> <port> <concurrency> <palette>');
+if (!stylesheet) {
+   console.warn('usage: ./server.js <stylesheet> <port> <concurrency> <palette>\n\n'+
+           'stylesheet: can either be the path to the mapnik xml-file or a pattern, where % will be replaced by the value of the WMS "layers" parameter. E.g. "styles/%.xml"');
    process.exit(1);
 }
 
 mapnik.register_fonts('/usr/local/lib/mapnik/fonts/');
 
 var renderer = require('./renderer')({
-    stylesheet_dir: stylesheet_dir,
+    stylesheet: stylesheet,
     concurrency: concurrency,
     palette: palette
 });

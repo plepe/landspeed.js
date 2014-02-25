@@ -24,18 +24,18 @@ function get_map(layer, callback) {
     // no free map object for layer loaded -> load
     var map = new mapnik.Map(256, 256);
     map.bufferSize = global_args.bufferSize;
-    var file = global_args.stylesheet_dir + '/' + layer + '.mapnik';
+    var file = global_args.stylesheet.replace('%', layer);
 
     fs.exists(file, function(exists) {
         if (!exists) {
-            console.log('File ' + layer + '.mapnik does not exist!');
+            console.log('File ' + file + ' does not exist!');
             callback(null);
             return;
         }
 
         map.load(file, {
             strict: false,
-            base: path.dirname(global_args.stylesheet_dir + '/' + layer + '.mapnik')
+            base: path.dirname(file)
         }, function(err, map) {
             if (err) throw err;
             map.zoomAll();
@@ -52,8 +52,8 @@ function get_map(layer, callback) {
 }
 
 module.exports = function(args) {
-    if (!args.stylesheet_dir) throw new Error('missing stylesheet directory');
-    args.stylesheet_dir = path.resolve(args.stylesheet_dir);
+    if (!args.stylesheet) throw new Error('missing stylesheet directory');
+    args.stylesheet = path.resolve(args.stylesheet);
     if (!args.concurrency) args.concurrency = 10;
     if (!args.bufferSize) args.bufferSize = 0;
     global_args = args;
