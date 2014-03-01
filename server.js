@@ -25,6 +25,7 @@ if (!stylesheet) {
 }
 
 mapnik.register_fonts('/usr/local/lib/mapnik/fonts/');
+mapnik.register_default_input_plugins();
 
 var renderer = require('./renderer')({
     stylesheet: stylesheet,
