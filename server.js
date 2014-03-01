@@ -55,6 +55,12 @@ var server = http.createServer(function(req, res) {
             res.end(tile);
         }
     });
+
+    res.addListener('close', function() {
+        // TODO: currently mapnik render jobs can't be aborted, maybe in the
+        // future?
+        console.log('connection closed - abort rendering ???');
+    });
 });
 
 server.listen(port, function() {
