@@ -56,6 +56,7 @@ module.exports = function(args) {
                     process.nextTick(function() { pool.release(thread); });
 
                     if (err) {
+                        console.log('An error occured: ' + err);
                         callback(err);
                     } else {
                         if (args.palette) {
